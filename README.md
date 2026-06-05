@@ -113,26 +113,35 @@ x-ui
 
 ### Docker 安装
 
-> Docker 教程与镜像由 [Chasing66](https://github.com/Chasing66) 提供。
+> Docker 配置思路参考 [Chasing66](https://github.com/Chasing66)。
+> 这里**用项目自带的 `Dockerfile` 自行构建镜像**：镜像里的 x-ui 与 xray 全部来自本仓库源码，代码完全可审计，**不依赖任何第三方镜像**，避免供应链投毒风险。
 
 ```bash
 # 1. 安装 docker
 curl -fsSL https://get.docker.com | sh
 
-# 2. 安装 x-ui
-mkdir x-ui && cd x-ui
+# 2. 拉取本项目源码
+git clone https://github.com/shanhaobo/x-ui.git
+cd x-ui
+
+# 3. 用自带 Dockerfile 构建镜像
+docker build -t x-ui .
+
+# 4. 运行（数据库与证书持久化到当前目录的 db/、cert/，容器重建也不丢数据）
 docker run -itd --network=host \
     -v $PWD/db/:/etc/x-ui/ \
     -v $PWD/cert/:/root/cert/ \
     --name x-ui --restart=unless-stopped \
-    enwaiax/x-ui:latest
+    x-ui
 ```
 
-自己构建镜像：
-
-```bash
-docker build -t x-ui .
-```
+> **更新版本**：`git pull` 拉取最新源码后，重新构建并重建容器（挂载在宿主 `db/`、`cert/` 的数据不受影响）：
+> ```bash
+> cd x-ui && git pull
+> docker build -t x-ui .
+> docker rm -f x-ui
+> # 再执行上面第 4 步的 docker run
+> ```
 
 ### 手动安装 / 升级
 
