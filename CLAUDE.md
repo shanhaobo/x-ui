@@ -60,6 +60,24 @@ x-ui 是一个支持多协议多用户的 xray 面板（Go 编写）。它通过
 ### 进程信号
 `main.go` 捕获信号：`SIGHUP` 触发**优雅重启**（Stop 旧 server → new server → Start，用于配置热生效），其它信号退出。
 
+## 发布流程（GitHub Actions）
+
+本仓库 fork 自上游 `vaxilu/x-ui`，所有安装/更新/发布地址已改为指向本仓库 `shanhaobo/x-ui`、分支 `main`：`install.sh`（取版本与下载包）、`x-ui.sh`（更新面板与脚本自更新）。fork 时若换账号，需同步替换这些文件里的 `shanhaobo`。
+
+`.github/workflows/release.yml` 负责自动构建并发布：
+
+- **触发**：推送 **`0.` 开头的 tag**（`on: push: tags: 0.*`），或手动 `workflow_dispatch`（dispatch 只构建、不发布——`release` job 有 `if: startsWith(github.ref, 'refs/tags/')`）。
+- **构建**：`build` job 用 matrix 编译 `amd64/arm64/s390x` 三个架构（`CGO_ENABLED=1`，arm64/s390x 用交叉编译器），各自下载最新 Xray-core 与 geo 数据打包成 `x-ui-linux-<arch>.tar.gz`，上传为 artifact。
+- **发布**：`release` job 聚合三个 artifact，用 **`softprops/action-gh-release@v2`** 一步创建正式 release 并上传全部包（**不是 draft/prerelease**——`install.sh` 走 `releases/latest`，只能取到正式发布）。
+- **权限**：用内置 `secrets.GITHUB_TOKEN` + workflow 顶部 `permissions: contents: write`。**fork 仓库默认禁用 Actions**，需在仓库 Settings → Actions 启用并把 Workflow permissions 设为读写。
+
+### 发版步骤
+1. 更新 `config/version` 为新版本号（程序 `x-ui -v` 自报版本，应与 release tag 一致）。
+2. 提交后打同名 tag 并推送：`git tag -a 0.3.4 -m "release 0.3.4" && git push origin 0.3.4`。
+3. Actions 跑完（约 3–5 分钟）后，Releases 出现该版本含三个 `.tar.gz`，`releases/latest` 即指向它。
+
+> 关键约束：① tag 必须 `0.` 开头否则不触发；② GitHub 的 latest 按**发布时间**判定（非版本号大小），不要重新发布旧版本，否则它会被误判成 latest；③ 旧 release 保留无害——`install.sh` 默认装 latest，传版本号参数（`bash install.sh 0.3.2`）可装指定旧版做回滚。
+
 ## 国际化
 i18n 用 `go-i18n` + toml（`web/translation/translate.{en_US,zh_Hans,zh_Hant}.toml`），默认简体中文。模板里通过 `{{ i18n "key" }}` 调用，按 `Accept-Language` 头本地化。
 
@@ -69,4 +87,4 @@ i18n 用 `go-i18n` + toml（`web/translation/translate.{en_US,zh_Hans,zh_Hant}.t
 ## 约定与注意事项
 - 代码注释与用户可见字符串大量使用中文，保持一致。
 - service 保持无状态空 struct；全局单例（xray 进程、db、webServer）通过包级变量管理。
-- 版本号在 `config/version` 文件中（发版打 `0.*` tag 触发 `.github/workflows/release.yml`，自动下载最新 Xray-core 与 geo 数据打包）。
+- 版本号在 `config/version` 文件中；发版流程见上文「发布流程」。
