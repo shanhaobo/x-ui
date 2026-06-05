@@ -78,6 +78,9 @@ x-ui 是一个支持多协议多用户的 xray 面板（Go 编写）。它通过
 
 > 关键约束：① tag 必须 `0.` 开头否则不触发；② GitHub 的 latest 按**发布时间**判定（非版本号大小），不要重新发布旧版本，否则它会被误判成 latest；③ 旧 release 保留无害——`install.sh` 默认装 latest，传版本号参数（`bash install.sh 0.3.2`）可装指定旧版做回滚。
 
+### Docker 自构建
+根目录 `Dockerfile` 为多阶段构建（`golang` 编译 → `debian:11-slim` 运行），产出的镜像内含**本仓库源码编译的 x-ui 与自带的 xray**。`bin/`（xray 二进制 + geo 数据）和 `Dockerfile` 均被 git 追踪，`git clone` 后 `docker build -t x-ui .` 即可构建。README 的 Docker 安装已改为此自构建方式，不依赖第三方镜像（规避供应链风险）。容器内 `RUN go build` 走默认 `GOPROXY`，面向外网环境，不为国内网络做适配。
+
 ## 国际化
 i18n 用 `go-i18n` + toml（`web/translation/translate.{en_US,zh_Hans,zh_Hant}.toml`），默认简体中文。模板里通过 `{{ i18n "key" }}` 调用，按 `Accept-Language` 头本地化。
 
